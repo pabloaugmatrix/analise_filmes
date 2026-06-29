@@ -1,16 +1,13 @@
-# This is a sample Python script.
+"""Entry point do projeto na raiz. So delega para o orquestrador do pipeline.
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+Uso:
+    python main.py                 # pipeline completo
+    python main.py --skip-raspagem  # so ETL
+    python main.py --paginas 20 -v  # raspagem menor + verbose
+"""
+import sys
 
+from pipeline.orchestrator import main
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+if __name__ == "__main__":
+    sys.exit(main())

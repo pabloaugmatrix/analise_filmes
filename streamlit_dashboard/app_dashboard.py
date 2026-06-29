@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from pathlib import Path
+
+# Raiz do projeto (pai da pasta streamlit_dashboard/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+TRUSTED_CSV = PROJECT_ROOT / "dados" / "processados" / "cinematografia_analytics_trusted.csv"
 
 # 1. Configuração da Página e Estilo (Design Focado em Tomada de Decisão)
 st.set_page_config(page_title="Cinema Analytics Dashboard", layout="wide", initial_sidebar_state="expanded")
@@ -13,14 +18,14 @@ st.markdown("---")
 # 2. Carga dos Dados Processados (Base Trusted)
 @st.cache_data
 def carregar_dados_analiticos():
-    df = pd.read_csv("dados/processados/cinematografia_analytics_trusted.csv")
+    df = pd.read_csv(TRUSTED_CSV)
     return df
 
 
 try:
     df_clean = carregar_dados_analiticos()
 except FileNotFoundError:
-    st.error("❌ Arquivo de dados consolidados não encontrado! Por favor, execute o script 'etl_consolidacao.py' antes.")
+    st.error("❌ Arquivo de dados consolidados não encontrado! Rode `python main.py` na raiz do projeto antes.")
     st.stop()
 
 # 3. Painel Lateral - Filtros Dinâmicos (Interação e Validação)

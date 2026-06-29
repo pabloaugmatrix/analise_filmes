@@ -1,1 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.python-version
+
+# Secrets / Env
+.env
+.env.local
+*.secret
+
+# IDEs
 .idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dados gerados (opcional: comente se quiser versionar amostras)
+# dados/brutos/
+# dados/processados/
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnp
+frontend/.pnp.js
