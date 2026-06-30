@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/generos", label: "Analise por Genero" },
   { href: "/filmes", label: "Analise por Filme" },
+  { href: "/tabela", label: "Tabela" },
 ];
 
 export function Navbar() {
