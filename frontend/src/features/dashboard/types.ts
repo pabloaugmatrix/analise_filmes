@@ -22,6 +22,7 @@ export interface Movie {
 
 export interface Kpis {
   roiMedioPct: number;
+  roiMedianaPct: number;
   taxaAssertividadePct: number;
   receitaMediaMilhoes: number;
   totalFilmes: number;

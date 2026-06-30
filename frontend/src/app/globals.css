@@ -3,76 +3,74 @@
 @tailwind utilities;
 
 :root {
-  --bg: #070b16;
-  --panel: #0b1120;
-  --panel-2: #0f1626;
-  --border: #1e293b;
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --card-alt: #252a36;
+  --line: #2e3340;
   --text: #e2e8f0;
   --muted: #94a3b8;
+  --accent: #6366f1;
 }
 
 html,
 body {
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: #2e3340 transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2e3340;
   border-radius: 999px;
 }
 
 @layer components {
-  .panel {
-    @apply rounded-xl border border-ink-700 bg-ink-900 shadow-panel;
+  .card {
+    @apply rounded-xl border border-line bg-card;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  .select-dark {
+    @apply rounded-md border border-[#3b4252] bg-cardalt px-3 py-2 pr-8 text-sm text-slate-100 outline-none transition;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    cursor: pointer;
+  }
+  .select-dark:hover,
+  .select-dark:focus {
+    border-color: var(--accent);
+  }
+  .nav-link {
+    @apply rounded-md px-3 py-2 text-sm font-medium text-[#94a3b8] transition;
+  }
+  .nav-link:hover {
+    @apply bg-white/5 text-slate-100;
+  }
+  .nav-link-active {
+    color: var(--accent);
+    background-color: rgba(99, 102, 241, 0.12);
   }
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-ink-600 bg-ink-800 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-brand-500 hover:text-white;
+    @apply cursor-pointer rounded-full border border-[#3b4252] bg-cardalt px-2.5 py-1 text-xs font-medium text-[#cbd5e1] transition hover:border-accent hover:text-white;
   }
   .chip-active {
-    @apply border-brand-500 bg-brand-500/15 text-white;
+    @apply border-accent bg-accent/15 text-white;
   }
-}
-
-/* Slider duplo de intervalo de anos */
-.range-thumb {
-  appearance: none;
-  background: transparent;
-  height: 24px;
-  margin: 0;
-}
-.range-thumb::-webkit-slider-thumb {
-  appearance: none;
-  pointer-events: auto;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: #6366f1;
-  border: 2px solid #e2e8f0;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-.range-thumb::-moz-range-thumb {
-  pointer-events: auto;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: #6366f1;
-  border: 2px solid #e2e8f0;
-  cursor: pointer;
-}
-.range-thumb::-webkit-slider-runnable-track {
-  background: transparent;
-}
-.range-thumb::-moz-range-track {
-  background: transparent;
+  .input-dark {
+    @apply rounded-md border border-[#3b4252] bg-cardalt px-3 py-2 text-sm text-slate-100 outline-none transition;
+  }
+  .input-dark:hover,
+  .input-dark:focus {
+    border-color: var(--accent);
+  }
 }

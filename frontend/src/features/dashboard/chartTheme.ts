@@ -26,16 +26,16 @@ export function buildGenreColorMap(genres: string[]): Record<string, string> {
   return map;
 }
 
-// Config base de eixos para o tema escuro
+// Config base de eixos para o tema escuro (paleta alinhada ao projeto de ref)
 export const darkAxis = {
-  axisLine: { lineStyle: { color: "#334155" } },
+  axisLine: { lineStyle: { color: "#2e3340" } },
   axisLabel: { color: "#94a3b8", fontSize: 11 },
-  splitLine: { lineStyle: { color: "#1e293b" } },
+  splitLine: { lineStyle: { color: "#2e3340" } },
 } as const;
 
 export const darkTooltip = {
-  backgroundColor: "rgba(11,17,32,0.95)",
-  borderColor: "#334155",
+  backgroundColor: "rgba(26,29,36,0.97)",
+  borderColor: "#2e3340",
   borderWidth: 1,
   textStyle: { color: "#e2e8f0", fontSize: 12 },
 } as const;

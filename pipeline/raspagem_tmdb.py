@@ -21,16 +21,11 @@ load_dotenv(PROJECT_ROOT / ".env")
 URL_DISCOVER = "https://api.themoviedb.org/3/discover/movie"
 URL_DETAILS = "https://api.themoviedb.org/3/movie/"
 
-# Filtros padrao do escopo do projeto (ultimos 20 anos e minimo de votos)
-PARAMS_PADRAO = {
-    "include_adult": "false",
-    "include_video": "false",
-    "language": "en-US",
-    "primary_release_date.gte": "2006-01-01",
-    "primary_release_date.lte": "2026-12-31",
-    "sort_by": "popularity.desc",
-    "vote_count.gte": 1000,
-}
+# Limites de seguranca contra rate-limit do TMDB (~20 req/10s).
+# Em rajadas o TMDB responde 401 "invalid key" (enganoso) - por isso o retry.
+DELAY_DISCOVER = 0.25  # entre paginas do /discover
+DELAY_DETAILS = 0.05   # entre chamadas de /movie/{id}
+TMDB_MAX_PAGINAS = 500  # teto absoluto do TMDB por consulta /discover
 
 
 def _obter_api_key() -> str:
@@ -43,44 +38,113 @@ def _obter_api_key() -> str:
     return api_key
 
 
-def extrair_lista_ids(total_paginas=40, api_key: str | None = None) -> list[int]:
-    """Passo 1: Coleta os IDs dos filmes mais populares do periodo filtrado."""
-    api_key = api_key or _obter_api_key()
-    lista_ids: list[int] = []
-    parametros = {**PARAMS_PADRAO, "api_key": api_key}
-
-    logger.info("Passo 1.1A: Coletando IDs dos filmes mais populares no TMDB...")
-
-    for pagina in range(1, total_paginas + 1):
-        parametros["page"] = pagina
+def _get_com_retry(url: str, params: dict, tentativas: int = 4) -> dict | None:
+    """GET com retry/backoff. Trata 401/429 (rate limit transitorio do TMDB)."""
+    for tentativa in range(1, tentativas + 1):
         try:
-            response = requests.get(URL_DISCOVER, params=parametros, timeout=30)
+            resp = requests.get(url, params=params, timeout=30)
         except requests.RequestException as exc:
-            logger.error("Erro de rede na pagina %s: %s", pagina, exc)
-            break
+            logger.warning("Erro de rede (tentativa %s/%s): %s", tentativa, tentativas, exc)
+            time.sleep(2 * tentativa)
+            continue
 
-        if response.status_code == 200:
-            resultados = response.json().get("results", [])
-            if not resultados:
-                logger.info("Pagina %s sem resultados - encerrando varredura.", pagina)
-                break
-            for filme in resultados:
-                lista_ids.append(filme.get("id"))
+        if resp.status_code == 200:
+            return resp.json()
 
-            if pagina % 10 == 0:
-                logger.info("Paginas varridas: %s/%s", pagina, total_paginas)
-        else:
-            logger.error(
-                "Erro ao acessar pagina %s: HTTP %s", pagina, response.status_code
+        # 401 em rajada ou 429 = rate limit -> esperar e tentar de novo
+        if resp.status_code in (401, 429) and tentativa < tentativas:
+            espera = 3 * tentativa
+            logger.warning(
+                "HTTP %s na pagina %s (provavel rate limit) - aguardando %ss...",
+                resp.status_code, params.get("page"), espera,
             )
+            time.sleep(espera)
+            continue
+
+        logger.error("HTTP %s: %s", resp.status_code, resp.text[:120])
+        return None
+    return None
+
+
+def _descobrir_ids_ano(
+    ano: int, vote_count_min: int, max_paginas: int, api_key: str
+) -> list[int]:
+    """Varre o /discover para um unico ano, paginando ate o limite real."""
+    ids: list[int] = []
+    params = {
+        "api_key": api_key,
+        "include_adult": "false",
+        "include_video": "false",
+        "language": "en-US",
+        "primary_release_date.gte": f"{ano}-01-01",
+        "primary_release_date.lte": f"{ano}-12-31",
+        "sort_by": "popularity.desc",
+    }
+    if vote_count_min and vote_count_min > 0:
+        params["vote_count.gte"] = vote_count_min
+
+    pagina = 1
+    total_pages = 1
+    limite = max_paginas
+    while pagina <= limite:
+        params["page"] = pagina
+        data = _get_com_retry(URL_DISCOVER, params)
+        if data is None:
             break
 
-    logger.info("Total de %s filmes mapeados para enriquecimento.", len(lista_ids))
-    return lista_ids
+        # Na primeira pagina, descobre quantas paginas existem de fato
+        if pagina == 1:
+            total_pages = data.get("total_pages", 1) or 1
+            limite = min(max_paginas, total_pages, TMDB_MAX_PAGINAS)
+
+        resultados = data.get("results", [])
+        if not resultados:
+            break
+        ids.extend(f.get("id") for f in resultados)
+
+        if pagina % 10 == 0:
+            logger.info("  Ano %s: %s/%s paginas varridas", ano, pagina, limite)
+        pagina += 1
+        time.sleep(DELAY_DISCOVER)
+
+    return ids
+
+
+def extrair_lista_ids(
+    ano_inicio: int = 2006,
+    ano_fim: int = 2026,
+    vote_count_min: int = 1000,
+    max_paginas_por_ano: int = TMDB_MAX_PAGINAS,
+    api_key: str | None = None,
+) -> list[int]:
+    """Coleta IDs via /discover fatiando POR ANO.
+
+    Fatiar por ano burla o teto de 10.000 resultados por consulta do TMDB,
+    permitindo coletar praticamente todos os filmes do intervalo. A
+    paginacao e dinamica (le o total_pages real de cada ano).
+    """
+    api_key = api_key or _obter_api_key()
+    logger.info(
+        "Coletando IDs por ano (%s-%s) | vote_count>=%s | max %s pag/ano...",
+        ano_inicio, ano_fim, vote_count_min, max_paginas_por_ano,
+    )
+
+    todos_ids: list[int] = []
+    for ano in range(ano_inicio, ano_fim + 1):
+        ids_ano = _descobrir_ids_ano(ano, vote_count_min, max_paginas_por_ano, api_key)
+        logger.info("Ano %s: %s filmes encontrados.", ano, len(ids_ano))
+        todos_ids.extend(ids_ano)
+
+    # Dedup de seguranca (preserva ordem)
+    todos_ids = list(dict.fromkeys(todos_ids))
+    logger.info("Total de %s filmes mapeados para enriquecimento.", len(todos_ids))
+    return todos_ids
 
 
 def enriquecer_dados_financeiros(
-    lista_ids: list[int], api_key: str | None = None
+    lista_ids: list[int],
+    api_key: str | None = None,
+    exigir_financeiros: bool = True,
 ) -> pd.DataFrame:
     """Passo 2: Busca orcamento, receita e dados tecnicos detalhados de cada ID."""
     api_key = api_key or _obter_api_key()
@@ -95,20 +159,15 @@ def enriquecer_dados_financeiros(
 
     for idx, movie_id in enumerate(lista_ids, start=1):
         url = f"{URL_DETAILS}{movie_id}"
-        try:
-            response = requests.get(url, params={"api_key": api_key}, timeout=30)
-        except requests.RequestException as exc:
-            logger.warning("Falha de rede ao buscar movie_id=%s: %s", movie_id, exc)
-            continue
+        detalhes = _get_com_retry(url, {"api_key": api_key})
 
-        if response.status_code == 200:
-            detalhes = response.json()
-
+        if detalhes is not None:
             budget = detalhes.get("budget", 0)
             revenue = detalhes.get("revenue", 0)
 
-            # Filtro de Qualidade de Dados: descarta linhas sem dados financeiros reais
-            if budget > 0 and revenue > 0:
+            # Filtro de Qualidade de Dados: descarta linhas sem dados financeiros
+            # (necessario para calcular ROI/Lucro). Desativavel via parametro.
+            if (not exigir_financeiros) or (budget > 0 and revenue > 0):
                 generos = [g.get("name") for g in detalhes.get("genres", [])]
                 genero_principal = generos[0] if len(generos) > 0 else "N/A"
                 genero_secundario = generos[1] if len(generos) > 1 else "N/A"
@@ -128,16 +187,11 @@ def enriquecer_dados_financeiros(
                         "vote_count": detalhes.get("vote_count"),
                     }
                 )
-        else:
-            logger.warning(
-                "movie_id=%s retornou HTTP %s - ignorado.", movie_id, response.status_code
-            )
 
         if idx % 50 == 0 or idx == total:
             logger.info("Progresso: %s/%s filmes analisados.", idx, total)
 
-        # Delay de seguranca para evitar bloqueio de requisicoes por IP
-        time.sleep(0.05)
+        time.sleep(DELAY_DETAILS)
 
     df = pd.DataFrame(filmes_enriquecidos)
 
@@ -152,12 +206,27 @@ def enriquecer_dados_financeiros(
     return df
 
 
-def executar_raspagem(total_paginas: int = 40, caminho_saida: str | None = None) -> str | None:
+def executar_raspagem(
+    ano_inicio: int = 2006,
+    ano_fim: int = 2026,
+    vote_count_min: int = 1000,
+    max_paginas_por_ano: int = TMDB_MAX_PAGINAS,
+    exigir_financeiros: bool = True,
+    caminho_saida: str | None = None,
+) -> str | None:
     """Ponto de entrada da camada Bronze: raspa, deduplica e salva CSV."""
     if caminho_saida is None:
         caminho_saida = str(BRUTOS_DIR / "tmdb_filmes_financeiro.csv")
-    ids_filmes = extrair_lista_ids(total_paginas=total_paginas)
-    df_cinema = enriquecer_dados_financeiros(ids_filmes)
+
+    ids_filmes = extrair_lista_ids(
+        ano_inicio=ano_inicio,
+        ano_fim=ano_fim,
+        vote_count_min=vote_count_min,
+        max_paginas_por_ano=max_paginas_por_ano,
+    )
+    df_cinema = enriquecer_dados_financeiros(
+        ids_filmes, exigir_financeiros=exigir_financeiros
+    )
 
     if df_cinema.empty:
         logger.error("Falha no pipeline: o DataFrame final esta vazio.")

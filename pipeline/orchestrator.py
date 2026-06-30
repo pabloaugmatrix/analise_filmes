@@ -42,7 +42,14 @@ def configurar_logging(verbose: bool = False) -> None:
     )
 
 
-def orquestrar(skip_raspagem: bool = False, total_paginas: int = 40) -> int:
+def orquestrar(
+    skip_raspagem: bool = False,
+    ano_inicio: int = 2006,
+    ano_fim: int = 2026,
+    vote_count_min: int = 1000,
+    max_paginas_por_ano: int = 500,
+    exigir_financeiros: bool = True,
+) -> int:
     """Executa o pipeline completo. Retorna exit code (0 = sucesso)."""
     logger.info("=" * 60)
     logger.info("INICIANDO PIPELINE CINEMA ANALYTICS")
@@ -58,7 +65,13 @@ def orquestrar(skip_raspagem: bool = False, total_paginas: int = 40) -> int:
     else:
         from pipeline.raspagem_tmdb import executar_raspagem
 
-        resultado = executar_raspagem(total_paginas=total_paginas)
+        resultado = executar_raspagem(
+            ano_inicio=ano_inicio,
+            ano_fim=ano_fim,
+            vote_count_min=vote_count_min,
+            max_paginas_por_ano=max_paginas_por_ano,
+            exigir_financeiros=exigir_financeiros,
+        )
         if resultado is None:
             logger.error("Fase 1 (raspagem) falhou - abortando pipeline.")
             return 1
@@ -88,10 +101,27 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Pula a fase de raspagem e usa o CSV Bronze existente.",
     )
     parser.add_argument(
-        "--paginas",
+        "--ano-inicio", type=int, default=2006, help="Ano inicial (default: 2006)."
+    )
+    parser.add_argument(
+        "--ano-fim", type=int, default=2026, help="Ano final (default: 2026)."
+    )
+    parser.add_argument(
+        "--votos",
         type=int,
-        default=40,
-        help="Numero de paginas do TMDB a varrer (default: 40).",
+        default=1000,
+        help="Limite minimo de votos (vote_count.gte). Baixe para coletar mais filmes (ex.: 100). Default: 1000.",
+    )
+    parser.add_argument(
+        "--max-paginas",
+        type=int,
+        default=500,
+        help="Maximo de paginas do /discover por ano (default: 500 = teto do TMDB).",
+    )
+    parser.add_argument(
+        "--sem-filtro-financeiro",
+        action="store_true",
+        help="Mantem filmes mesmo sem budget/revenue (atencao: ROI/Lucro ficam 0).",
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -105,7 +135,14 @@ def main(argv: list[str] | None = None) -> int:
     """Ponto de entrada reusavel (chamado pelo main.py da raiz)."""
     args = _parse_args(argv)
     configurar_logging(verbose=args.verbose)
-    return orquestrar(skip_raspagem=args.skip_raspagem, total_paginas=args.paginas)
+    return orquestrar(
+        skip_raspagem=args.skip_raspagem,
+        ano_inicio=args.ano_inicio,
+        ano_fim=args.ano_fim,
+        vote_count_min=args.votos,
+        max_paginas_por_ano=args.max_paginas,
+        exigir_financeiros=not args.sem_filtro_financeiro,
+    )
 
 
 if __name__ == "__main__":

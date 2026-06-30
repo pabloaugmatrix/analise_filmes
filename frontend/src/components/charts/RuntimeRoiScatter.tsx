@@ -15,7 +15,7 @@ interface Props {
 export function RuntimeRoiScatter({ data }: Props) {
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    grid: { left: 64, right: 24, top: 24, bottom: 56 },
+    grid: { left: 70, right: 30, top: 44, bottom: 90 },
     tooltip: {
       ...darkTooltip,
       trigger: "item",
@@ -36,8 +36,8 @@ export function RuntimeRoiScatter({ data }: Props) {
       calculable: true,
       orient: "horizontal",
       left: "center",
-      bottom: 4,
-      itemHeight: 12,
+      bottom: 8,
+      itemHeight: 14,
       text: ["Nota 10", "Nota 0"],
       textStyle: { color: "#94a3b8", fontSize: 11 },
       inRange: { color: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"] },
@@ -80,5 +80,5 @@ export function RuntimeRoiScatter({ data }: Props) {
     ],
   };
 
-  return <EChart option={option} height={440} />;
+  return <EChart option={option} height={460} />;
 }

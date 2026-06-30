@@ -2,21 +2,19 @@ import type { ReactNode } from "react";
 
 interface Props {
   title: string;
-  subtitle?: string;
-  flush?: boolean;
+  desc?: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function ChartPanel({ title, subtitle, flush, children }: Props) {
+export function ChartPanel({ title, desc, children, className }: Props) {
   return (
-    <section className="panel flex flex-col">
-      <header className={`border-b border-ink-700 ${flush ? "px-4 py-3" : "px-5 py-4"}`}>
-        <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
-        {subtitle ? (
-          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
-        ) : null}
+    <section className={`card flex flex-col p-4 ${className ?? ""}`}>
+      <header className="mb-2.5">
+        <h3 className="text-base font-semibold text-slate-100">{title}</h3>
+        {desc ? <p className="mt-1 text-xs text-[#94a3b8]">{desc}</p> : null}
       </header>
-      <div className={flush ? "" : "p-3"}>{children}</div>
+      {children}
     </section>
   );
 }

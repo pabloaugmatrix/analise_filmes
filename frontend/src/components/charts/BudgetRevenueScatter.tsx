@@ -27,11 +27,26 @@ export function BudgetRevenueScatter({ data, allGenres }: Props) {
     byGenre.set(m.genre_primary, list);
   }
 
+  // Normalizacao do tamanho das bolhas pela raiz do lucro (area proporcional).
+  // Espalha os tamanhos no intervalo [MIN_R, MAX_R] usando sqrt(lucro) para que
+  // a diferenca entre filmes pouco e muito lucrativos fique visivel.
+  const MIN_R = 7;
+  const MAX_R = 48;
+  const lucrosPos = data.map((m) => m.lucro_real).filter((v) => v > 0);
+  const sqrtMin = lucrosPos.length ? Math.sqrt(Math.min(...lucrosPos)) : 0;
+  const sqrtMax = lucrosPos.length ? Math.sqrt(Math.max(...lucrosPos)) : 1;
+  const span = Math.max(sqrtMax - sqrtMin, 1);
+  const bubbleSize = (lucro: number): number => {
+    if (lucro <= 0) return MIN_R; // prejuizo -> bolha minima
+    const t = (Math.sqrt(lucro) - sqrtMin) / span;
+    return MIN_R + Math.max(0, Math.min(1, t)) * (MAX_R - MIN_R);
+  };
+
   const series: EChartsOption["series"] = Array.from(byGenre.entries()).map(
     ([genre, list]) => ({
       name: genre,
       type: "scatter",
-      symbolSize: (val: number[]) => Math.max(6, Math.min(46, Math.sqrt(Math.max(val[2], 0)) / 220)),
+      symbolSize: (val: number[]) => bubbleSize(val[2]),
       data: list.map((m) => ({
         name: m.title,
         value: [m.budget_real, m.revenue_real, m.lucro_real, m.roi_real],
@@ -64,10 +79,10 @@ export function BudgetRevenueScatter({ data, allGenres }: Props) {
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    grid: { left: 64, right: 24, top: 24, bottom: 56 },
+    grid: { left: 70, right: 30, top: 60, bottom: 64 },
     legend: {
       type: "scroll",
-      top: 0,
+      top: 8,
       textStyle: { color: "#94a3b8", fontSize: 11 },
       itemWidth: 10,
       itemHeight: 10,
@@ -110,5 +125,5 @@ export function BudgetRevenueScatter({ data, allGenres }: Props) {
     series,
   };
 
-  return <EChart option={option} height={400} />;
+  return <EChart option={option} height={460} />;
 }
