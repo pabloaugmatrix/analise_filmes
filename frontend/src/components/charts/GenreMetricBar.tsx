@@ -54,7 +54,9 @@ export function GenreMetricBar({ data, metric }: Props) {
     ? {
         type: "log" as const,
         name: cfg.label + " (log)",
-        nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
+        nameLocation: "end" as const,
+        nameGap: 12,
+        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
         axisLine: darkAxis.axisLine,
         splitLine: darkAxis.splitLine,
         axisLabel,
@@ -62,7 +64,9 @@ export function GenreMetricBar({ data, metric }: Props) {
     : {
         type: "value" as const,
         name: cfg.label,
-        nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
+        nameLocation: "end" as const,
+        nameGap: 12,
+        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
         axisLine: darkAxis.axisLine,
         splitLine: darkAxis.splitLine,
         axisLabel,
@@ -70,7 +74,7 @@ export function GenreMetricBar({ data, metric }: Props) {
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
-    grid: { left: 56, right: 28, top: 40, bottom: 92 },
+    grid: { left: 104, right: 28, top: 54, bottom: 92 },
     tooltip: {
       ...darkTooltip,
       trigger: "axis",

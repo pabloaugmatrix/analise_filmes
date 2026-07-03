@@ -6,7 +6,7 @@ import type { Movie } from "@/features/dashboard/types";
 import type { MetricId } from "@/features/dashboard/metrics";
 import { MetricTabs } from "@/components/MetricTabs";
 import { GenreMetricBar } from "@/components/charts/GenreMetricBar";
-import { METRICS } from "@/features/dashboard/metrics";
+import { METRICS, isLogMetric } from "@/features/dashboard/metrics";
 
 interface Props {
   data: Movie[];
@@ -26,7 +26,8 @@ export function GenreMetricBarSwitcher({ data }: Props) {
             {def?.label ?? "Metrica"} por Genero
           </h3>
           <p className="mt-1 text-xs text-[#94a3b8]">
-            Selecione a metrica para comparar os generos.
+            Selecione a metrica para comparar os generos
+            {isLogMetric(metric) ? " (escala logaritmica no eixo Y)" : ""}.
           </p>
         </div>
         <MetricTabs value={metric} onChange={setMetric} />

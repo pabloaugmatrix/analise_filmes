@@ -1,7 +1,9 @@
 import os
+import time
 import logging
 
 import pandas as pd
+import requests
 import pandera as pa
 from pandera import Column, Check, DataFrameSchema
 
@@ -52,17 +54,132 @@ SCHEMA_TRUSTED = DataFrameSchema(
 )
 
 
-def carregar_tabela_cpi() -> pd.DataFrame:
-    """Retorna o mapeamento do CPI baseado nos dados oficiais do BLS."""
-    dados_cpi = {
-        'ano_lancamento': [2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015,
-                           2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
-        'cpi_medio': [201.6, 207.3, 215.3, 214.5, 218.1, 224.9, 229.6, 233.0, 236.7, 237.0,
-                      240.0, 245.1, 251.1, 255.7, 258.8, 271.0, 292.7, 304.7, 314.1, 324.5, 334.2]
-    }
-    df = pd.DataFrame(dados_cpi)
-    cpi_2026 = df[df['ano_lancamento'] == 2026]['cpi_medio'].values[0]
-    df['fator_deflator'] = cpi_2026 / df['cpi_medio']
+# ==============================================================================
+# AJUSTE INFLACIONARIO - API PUBLICA DO BLS (Bureau of Labor Statistics)
+# ==============================================================================
+# Serie CPI-U (All Items, U.S. city average): indice oficial de inflacao ao
+# consumidor. A API entrega valores mensais; a media anual e calculada a partir
+# dos 12 meses de cada ano (metodo oficial do BLS).
+BLS_API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
+BLS_SERIES_CPI_U = "CUUR0000SA0"
+
+# Tabela estatica de fallback (medias anuais oficiais BLS). Usada quando a API
+# esta indisponivel ou para anos ainda nao publicados (ex.: ano-base futuro).
+_CPI_FALLBACK: dict[int, float] = {
+    2006: 201.6, 2007: 207.3, 2008: 215.3, 2009: 214.5, 2010: 218.1,
+    2011: 224.9, 2012: 229.6, 2013: 233.0, 2014: 236.7, 2015: 237.0,
+    2016: 240.0, 2017: 245.1, 2018: 251.1, 2019: 255.7, 2020: 258.8,
+    2021: 271.0, 2022: 292.7, 2023: 304.7, 2024: 314.1, 2025: 324.5,
+    2026: 334.2,
+}
+
+
+def _buscar_cpi_bls(ano_inicio: int, ano_fim: int) -> dict[int, float] | None:
+    """Consulta a API publica do BLS e retorna {ano: cpi_medio_anual}.
+
+    A API gratuita limita a 10 anos por consulta, por isso fatiamos em janelas.
+    Retorna None se a API falhar (caller usa o fallback estatico).
+    """
+    api_key = os.getenv("BLS_API_KEY")  # opcional; eleva limites diarios
+    resultado: dict[int, float] = {}
+    mensais: dict[int, list[float]] = {}
+    janela = 10  # teto da API gratuita por consulta
+
+    for ini in range(ano_inicio, ano_fim + 1, janela):
+        fim = min(ini + janela - 1, ano_fim)
+        body = {
+            "seriesid": [BLS_SERIES_CPI_U],
+            "startyear": str(ini),
+            "endyear": str(fim),
+        }
+        if api_key:
+            body["registrationkey"] = api_key
+
+        try:
+            resp = requests.post(BLS_API_URL, json=body, timeout=30)
+            resp.raise_for_status()
+            payload = resp.json()
+        except (requests.RequestException, ValueError) as exc:
+            logger.warning(
+                "BLS API indisponivel para %s-%s (%s). Continuando com fallback.",
+                ini, fim, exc,
+            )
+            return None
+
+        if payload.get("status") != "REQUEST_SUCCEEDED":
+            logger.warning(
+                "BLS API retornou status '%s'. Continuando com fallback.",
+                payload.get("status"),
+            )
+            return None
+
+        series = payload.get("Results", {}).get("series", [])
+        if not series:
+            logger.warning("BLS: nenhuma serie no payload. Continuando com fallback.")
+            return None
+
+        for item in series[0].get("data", []):
+            # A API entrega apenas valores mensais (M01-M12); a media anual
+            # oficial do BLS e a media aritmetica dos 12 meses do ano.
+            period = item.get("period", "")
+            if not period.startswith("M") or period == "M13":
+                continue
+            try:
+                mensais.setdefault(int(item["year"]), []).append(float(item["value"]))
+            except (ValueError, KeyError, TypeError):
+                continue
+
+        time.sleep(1)  # cortesia para nao estourar o limite gratuito
+
+    # So forma a media anual de anos COMPLETOS (12 meses publicados). Anos
+    # parciais (ex.: ano em curso) ficam de fora e caem no fallback estatico.
+    for ano, valores in mensais.items():
+        if len(valores) == 12:
+            resultado[ano] = round(sum(valores) / 12, 1)
+
+    if not resultado:
+        logger.warning("BLS: nenhum ano completo retornado. Continuando com fallback.")
+        return None
+
+    return resultado
+
+
+def carregar_tabela_cpi(ano_inicio: int = 2006, ano_fim: int = 2026) -> pd.DataFrame:
+    """Retorna o CPI anual (media) por ano de lancamento + fator deflator.
+
+    Prioriza dados em tempo real da API publica do BLS (serie CPI-U). Anos nao
+    cobertos pela API (ex.: ano-base futuro/projetado) sao preenchidos com a
+    tabela estatica oficial de fallback. O fator deflator usa o ultimo ano do
+    intervalo como base (poder de compra corrente).
+    """
+    anos = list(range(ano_inicio, ano_fim + 1))
+    cpi_por_ano: dict[int, float] = {}
+
+    api = _buscar_cpi_bls(ano_inicio, ano_fim)
+    if api is not None:
+        usados = 0
+        for ano in anos:
+            if ano in api:
+                cpi_por_ano[ano] = api[ano]
+                usados += 1
+            elif ano in _CPI_FALLBACK:
+                cpi_por_ano[ano] = _CPI_FALLBACK[ano]
+        logger.info(
+            "CPI: %s/%s anos obtidos via API BLS (restante do fallback estatico).",
+            usados, len(anos),
+        )
+    else:
+        cpi_por_ano = {a: _CPI_FALLBACK[a] for a in anos if a in _CPI_FALLBACK}
+        logger.info("CPI: usando tabela estatica de fallback (API BLS indisponivel).")
+
+    if not cpi_por_ano:
+        raise RuntimeError("Sem valores de CPI para o intervalo solicitado.")
+
+    df = pd.DataFrame(
+        sorted(cpi_por_ano.items()), columns=["ano_lancamento", "cpi_medio"]
+    )
+    base = df["cpi_medio"].iloc[-1]  # base = ultimo ano do intervalo
+    df["fator_deflator"] = base / df["cpi_medio"]
     return df
 
 

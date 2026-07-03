@@ -19,3 +19,22 @@ export const METRICS: MetricDef[] = [
 export function isLogMetric(metric: MetricId): boolean {
   return metric !== "nota";
 }
+
+// Dimensoes disponiveis para o eixo X do grafico de linhas por genero.
+// "duracao" preserva a analise original (P7-P9); as demais metricas permitem
+// cruzar variaveis (ex.: receita x nota -> P5).
+export type XDim = "duracao" | MetricId;
+
+export interface XDimDef {
+  id: XDim;
+  label: string;
+  short: string;
+}
+
+export const X_DIMS: XDimDef[] = [
+  { id: "duracao", label: "Duracao", short: "Duracao" },
+  { id: "nota", label: "Nota", short: "Nota" },
+  { id: "roi", label: "ROI Real", short: "ROI" },
+  { id: "receita", label: "Receita Real", short: "Receita" },
+  { id: "lucro", label: "Lucro Real", short: "Lucro" },
+];

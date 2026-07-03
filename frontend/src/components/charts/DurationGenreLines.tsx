@@ -5,10 +5,23 @@ import type { EChartsOption } from "echarts";
 
 import type { Movie } from "@/features/dashboard/types";
 import { buildGenreColorMap, darkAxis, darkTooltip } from "@/features/dashboard/chartTheme";
-import { groupBy, mean, RUNTIME_BUCKETS, runtimeBucket } from "@/features/dashboard/aggregations";
+import {
+  groupBy,
+  mean,
+  RUNTIME_BUCKETS,
+  runtimeBucket,
+  NOTA_BUCKETS,
+  ROI_BUCKETS,
+  RECEITA_BUCKETS,
+  LUCRO_BUCKETS,
+  notaBucket,
+  roiBucket,
+  receitaBucket,
+  lucroBucket,
+} from "@/features/dashboard/aggregations";
 import { formatCompactUSD } from "@/features/dashboard/stats";
-import type { MetricId } from "@/features/dashboard/metrics";
-import { METRICS, isLogMetric } from "@/features/dashboard/metrics";
+import type { MetricId, XDim } from "@/features/dashboard/metrics";
+import { METRICS, X_DIMS, isLogMetric } from "@/features/dashboard/metrics";
 import { MetricTabs } from "@/components/MetricTabs";
 import { EChart } from "@/components/charts/EChart";
 
@@ -35,11 +48,47 @@ function formatValue(v: number, metric: MetricId): string {
   return formatCompactUSD(v);
 }
 
-// Eixo X: duracao (faixas de runtime). Uma linha por genero para a metrica
-// selecionada (ROI/Lucro/Receita/Nota). Responde P7, P8 e P9.
+// Faixas (buckets) do eixo X conforme a dimensao escolhida.
+function xBuckets(x: XDim): readonly string[] {
+  switch (x) {
+    case "duracao":
+      return RUNTIME_BUCKETS;
+    case "nota":
+      return NOTA_BUCKETS;
+    case "roi":
+      return ROI_BUCKETS;
+    case "receita":
+      return RECEITA_BUCKETS;
+    case "lucro":
+      return LUCRO_BUCKETS;
+  }
+}
+
+function xBucketOf(m: Movie, x: XDim): string {
+  switch (x) {
+    case "duracao":
+      return runtimeBucket(m.runtime);
+    case "nota":
+      return notaBucket(m.vote_average);
+    case "roi":
+      return roiBucket(m.roi_real);
+    case "receita":
+      return receitaBucket(m.revenue_real);
+    case "lucro":
+      return lucroBucket(m.lucro_real);
+  }
+}
+
+// Linhas por genero: eixo Y = metrica (seletor de cima), eixo X = dimensao
+// (seletor de baixo). Permite cruzar metricas (ex.: receita x nota -> P5),
+// alem de manter a analise por duracao (P7-P9).
 export function DurationGenreLines({ data }: Props) {
   const [metric, setMetric] = useState<MetricId>("roi");
-  const def = METRICS.find((m) => m.id === metric);
+  const [xDim, setXDim] = useState<XDim>("duracao");
+  const yDef = METRICS.find((m) => m.id === metric);
+  const xDef = X_DIMS.find((x) => x.id === xDim);
+
+  const buckets = xBuckets(xDim);
 
   const genresInData = useMemo(
     () => Array.from(new Set(data.map((m) => m.genre_primary))).sort(),
@@ -50,7 +99,7 @@ export function DurationGenreLines({ data }: Props) {
   const series: EChartsOption["series"] = genresInData.map((genre) => {
     const byBucket = groupBy(
       data.filter((m) => m.genre_primary === genre),
-      (m) => runtimeBucket(m.runtime)
+      (m) => xBucketOf(m, xDim)
     );
     return {
       name: genre,
@@ -59,7 +108,7 @@ export function DurationGenreLines({ data }: Props) {
       symbol: "circle",
       symbolSize: 8,
       connectNulls: true,
-      data: RUNTIME_BUCKETS.map((b) => {
+      data: buckets.map((b) => {
         const list = byBucket.get(b);
         return list && list.length
           ? Number(mean(list.map((m) => metricValue(m, metric))).toFixed(metric === "nota" ? 2 : 1))
@@ -89,7 +138,7 @@ export function DurationGenreLines({ data }: Props) {
   });
 
   const useLog = isLogMetric(metric);
-  const axisLabel = {
+  const yAxisLabel = {
     ...darkAxis.axisLabel,
     formatter: (v: number) =>
       metric === "roi" ? `${v}%` : metric === "nota" ? `${v}` : formatCompactUSD(v),
@@ -97,28 +146,33 @@ export function DurationGenreLines({ data }: Props) {
   const yAxis = useLog
     ? {
         type: "log" as const,
-        name: (def?.label ?? "") + " (log)",
-        nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
+        name: (yDef?.label ?? "") + " (log)",
+        nameLocation: "end" as const,
+        nameGap: 12,
+        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
         axisLine: darkAxis.axisLine,
         splitLine: darkAxis.splitLine,
-        axisLabel,
+        axisLabel: yAxisLabel,
       }
     : {
         type: "value" as const,
-        name: def?.label ?? "",
-        nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
+        name: yDef?.label ?? "",
+        nameLocation: "end" as const,
+        nameGap: 12,
+        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
         axisLine: darkAxis.axisLine,
         splitLine: darkAxis.splitLine,
-        axisLabel,
+        axisLabel: yAxisLabel,
       };
 
   const option: EChartsOption = {
     backgroundColor: "transparent",
     color: genresInData.map((g) => colorMap[g]),
-    grid: { left: 64, right: 96, top: 52, bottom: 58 },
+    grid: { left: 104, right: 96, top: 70, bottom: 58 },
     legend: {
       type: "scroll",
       top: 8,
+      itemGap: 16,
       textStyle: { color: "#94a3b8", fontSize: 11 },
       itemWidth: 12,
       itemHeight: 8,
@@ -135,7 +189,7 @@ export function DurationGenreLines({ data }: Props) {
           dataIndex: number;
         }>;
         if (!arr || arr.length === 0) return "";
-        const faixa = RUNTIME_BUCKETS[arr[0].dataIndex];
+        const faixa = buckets[arr[0].dataIndex];
         const rows = arr
           .filter((p) => p.value != null)
           .map(
@@ -149,8 +203,8 @@ export function DurationGenreLines({ data }: Props) {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: [...RUNTIME_BUCKETS],
-      name: "Duracao (min)",
+      data: [...buckets],
+      name: xDef?.label,
       nameLocation: "middle",
       nameGap: 34,
       nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
@@ -160,20 +214,50 @@ export function DurationGenreLines({ data }: Props) {
     series,
   };
 
+  // Evita X == Y: desabilita a metrica do outro eixo em cada seletor.
+  const yDisabled = xDim !== "duracao" ? [xDim as MetricId] : undefined;
+
   return (
     <section className="card flex flex-col p-4">
       <header className="mb-2.5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-100">
-            {def?.label} por Duracao e Genero
+            {yDef?.label} por {xDef?.label} e Genero
           </h3>
           <p className="mt-1 text-xs text-[#94a3b8]">
-            Como cada metrica varia com a duracao do filme (uma linha por genero).
+            Eixo Y (acima) e eixo X (abaixo) selecionaveis. Como o {yDef?.short}{" "}
+            de cada genero se comporta segundo {xDef?.short.toLowerCase()}.
+            {isLogMetric(metric) ? " Eixo Y em escala logaritmica." : ""}
           </p>
         </div>
-        <MetricTabs value={metric} onChange={setMetric} />
+        <MetricTabs value={metric} onChange={setMetric} disabled={yDisabled} />
       </header>
       <EChart option={option} height={440} />
+      <footer className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+        <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-[#94a3b8]">
+          Eixo X
+        </span>
+        {X_DIMS.map((x) => {
+          const active = x.id === xDim;
+          const isDisabled = x.id !== "duracao" && x.id === metric;
+          const cls = active
+            ? "rounded-md border px-3 py-1.5 text-xs font-medium border-accent bg-accent/20 text-white"
+            : isDisabled
+            ? "rounded-md border px-3 py-1.5 text-xs font-medium border-line bg-cardalt text-[#94a3b8] cursor-not-allowed opacity-30"
+            : "rounded-md border px-3 py-1.5 text-xs font-medium border-line bg-cardalt text-[#94a3b8] hover:border-accent hover:text-white";
+          return (
+            <button
+              key={x.id}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => setXDim(x.id)}
+              className={cls}
+            >
+              {x.short}
+            </button>
+          );
+        })}
+      </footer>
     </section>
   );
 }

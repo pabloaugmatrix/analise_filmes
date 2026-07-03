@@ -90,13 +90,15 @@ export default function FilmesPage() {
             <ChartPanel
               title="Nota do Publico x Lucro Real"
               desc="Filmes melhor avaliados tendem a gerar maior lucro? (linha tracejada = tendencia OLS)"
+              className="xl:col-span-2"
             >
               <VoteProfitScatter data={filtered} allGenres={selectedGenres} />
             </ChartPanel>
 
             <ChartPanel
               title="Duracao x ROI (cor = nota)"
-              desc="Impacto da duracao no sucesso financeiro e nas avaliacoes."
+              desc="Impacto da duracao no ROI - apenas filmes lucrativos (escala logaritmica no eixo Y; filmes com prejuizo nao aparecem)."
+              className="xl:col-span-2"
             >
               <RuntimeRoiScatter data={filtered} />
             </ChartPanel>

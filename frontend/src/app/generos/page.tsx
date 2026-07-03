@@ -9,6 +9,7 @@ import { GenreRoiTimeline } from "@/components/charts/GenreRoiTimeline";
 import { GenreMetricBarSwitcher } from "@/components/GenreMetricBarSwitcher";
 import { GenreBudgetHeatmap } from "@/components/charts/GenreBudgetHeatmap";
 import { DurationGenreLines } from "@/components/charts/DurationGenreLines";
+import { CombinationTable } from "@/components/charts/CombinationTable";
 import { AsyncState } from "@/components/AsyncState";
 
 export default function GenerosPage() {
@@ -74,7 +75,7 @@ export default function GenerosPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <ChartPanel
               title="Evolucao do ROI por Genero"
-              desc="ROI real medio de cada genero ao decorrer dos anos - uma linha por genero."
+              desc="ROI real medio de cada genero ao decorrer dos anos - uma linha por genero (escala logaritmica no eixo Y)."
               className="xl:col-span-3"
             >
               <GenreRoiTimeline data={filtered} allGenres={selectedGenres} />
@@ -96,6 +97,11 @@ export default function GenerosPage() {
             {/* Novo grafico de duracao (responde P7/P8/P9) - no lugar do antigo Nota Media */}
             <div className="lg:col-span-2 xl:col-span-3">
               <DurationGenreLines data={filtered} />
+            </div>
+
+            {/* Sintese P10: ranking de combinacoes genero x orcamento x duracao */}
+            <div className="lg:col-span-2 xl:col-span-3">
+              <CombinationTable data={filtered} />
             </div>
           </div>
         </>

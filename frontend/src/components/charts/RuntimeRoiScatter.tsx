@@ -51,8 +51,8 @@ export function RuntimeRoiScatter({ data }: Props) {
       ...darkAxis,
     },
     yAxis: {
-      type: "value",
-      name: "ROI Real",
+      type: "log",
+      name: "ROI Real (escala log)",
       nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
       ...darkAxis,
       axisLabel: {
@@ -65,15 +65,19 @@ export function RuntimeRoiScatter({ data }: Props) {
         name: "Filmes",
         type: "scatter",
         symbolSize: (val: number[]) => 6 + Math.min(20, val[2] * 2),
-        data: data.map((m) => ({
-          name: m.title,
-          value: [
-            m.runtime,
-            m.roi_real,
-            m.vote_average,
-            m.revenue_real,
-          ],
-        })),
+        // Eixo Y em escala log: descarta ROI <= 0 (empate/prejuizo), pois o log
+        // nao aceita valores nao positivos e quebraria a escala.
+        data: data
+          .filter((m) => m.roi_real > 0)
+          .map((m) => ({
+            name: m.title,
+            value: [
+              m.runtime,
+              m.roi_real,
+              m.vote_average,
+              m.revenue_real,
+            ],
+          })),
         itemStyle: { opacity: 0.8 },
         emphasis: { itemStyle: { opacity: 1, shadowBlur: 8 } },
       },

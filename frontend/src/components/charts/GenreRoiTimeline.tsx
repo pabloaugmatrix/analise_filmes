@@ -80,10 +80,11 @@ export function GenreRoiTimeline({ data, allGenres }: Props) {
   const option: EChartsOption = {
     backgroundColor: "transparent",
     color: genresInData.map((g) => colorMap[g]),
-    grid: { left: 56, right: 96, top: 52, bottom: 58 },
+    grid: { left: 104, right: 96, top: 70, bottom: 58 },
     legend: {
       type: "scroll",
       top: 8,
+      itemGap: 16,
       textStyle: { color: "#94a3b8", fontSize: 11 },
       itemWidth: 12,
       itemHeight: 8,
@@ -120,8 +121,10 @@ export function GenreRoiTimeline({ data, allGenres }: Props) {
     },
     yAxis: {
       type: "log",
-      name: "ROI real medio (%) - escala log",
-      nameTextStyle: { color: "#cbd5e1", fontSize: 12 },
+      name: "ROI real medio (%)",
+      nameLocation: "end",
+      nameGap: 12,
+      nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
       ...darkAxis,
       axisLabel: { ...darkAxis.axisLabel, formatter: "{value}%" },
     },
