@@ -39,27 +39,55 @@ export function budgetBucket(budgetReal: number): string {
 
 // Faixas de duracao (runtime) - usadas nas analises por duracao (P7/P8/P9)
 export const RUNTIME_BUCKETS = [
-  "< 90 min",
-  "90-110 min",
-  "110-130 min",
-  "130-150 min",
-  "> 150 min",
+  "< 80 min",
+  "80-95 min",
+  "95-110 min",
+  "110-125 min",
+  "125-140 min",
+  "140-160 min",
+  "> 160 min",
 ] as const;
 
 export function runtimeBucket(runtime: number): string {
-  if (runtime < 90) return "< 90 min";
-  if (runtime < 110) return "90-110 min";
-  if (runtime < 130) return "110-130 min";
-  if (runtime < 150) return "130-150 min";
-  return "> 150 min";
+  if (runtime < 80) return "< 80 min";
+  if (runtime < 95) return "80-95 min";
+  if (runtime < 110) return "95-110 min";
+  if (runtime < 125) return "110-125 min";
+  if (runtime < 140) return "125-140 min";
+  if (runtime < 160) return "140-160 min";
+  return "> 160 min";
 }
 
 // Faixas das metricas continuas, usadas como eixo X categorico no grafico de
 // linhas por genero (cruzamento de variaveis).
 export const NOTA_BUCKETS = ["0","1","2","3","4","5","6","7","8","9","10"] as const;
-export const ROI_BUCKETS = ["< 0%", "0-100%", "100-300%", "300-1000%", "> 1000%"] as const;
-export const RECEITA_BUCKETS = ["< $50M", "$50-150M", "$150-400M", "$400-800M", "> $800M"] as const;
-export const LUCRO_BUCKETS = ["< $0", "$0-100M", "$100-300M", "$300-700M", "> $700M"] as const;
+export const ROI_BUCKETS = [
+  "< 0%",
+  "0-50%",
+  "50-100%",
+  "100-300%",
+  "300-600%",
+  "600-1000%",
+  "> 1000%",
+] as const;
+export const RECEITA_BUCKETS = [
+  "< $30M",
+  "$30-80M",
+  "$80-150M",
+  "$150-300M",
+  "$300-500M",
+  "$500-800M",
+  "> $800M",
+] as const;
+export const LUCRO_BUCKETS = [
+  "< $0",
+  "$0-50M",
+  "$50-150M",
+  "$150-300M",
+  "$300-500M",
+  "$500-800M",
+  "> $800M",
+] as const;
 
 export function notaBucket(v: number): string {
   return String(Math.min(10, Math.max(0, Math.floor(v))));
@@ -68,28 +96,34 @@ export function notaBucket(v: number): string {
 export function roiBucket(roi: number): string {
   const pct = roi * 100;
   if (pct < 0) return "< 0%";
-  if (pct <= 100) return "0-100%";
+  if (pct <= 50) return "0-50%";
+  if (pct <= 100) return "50-100%";
   if (pct <= 300) return "100-300%";
-  if (pct <= 1000) return "300-1000%";
+  if (pct <= 600) return "300-600%";
+  if (pct <= 1000) return "600-1000%";
   return "> 1000%";
 }
 
 export function receitaBucket(v: number): string {
   const m = v / 1e6;
-  if (m < 50) return "< $50M";
-  if (m <= 150) return "$50-150M";
-  if (m <= 400) return "$150-400M";
-  if (m <= 800) return "$400-800M";
+  if (m < 30) return "< $30M";
+  if (m <= 80) return "$30-80M";
+  if (m <= 150) return "$80-150M";
+  if (m <= 300) return "$150-300M";
+  if (m <= 500) return "$300-500M";
+  if (m <= 800) return "$500-800M";
   return "> $800M";
 }
 
 export function lucroBucket(v: number): string {
   const m = v / 1e6;
   if (m < 0) return "< $0";
-  if (m <= 100) return "$0-100M";
-  if (m <= 300) return "$100-300M";
-  if (m <= 700) return "$300-700M";
-  return "> $700M";
+  if (m <= 50) return "$0-50M";
+  if (m <= 150) return "$50-150M";
+  if (m <= 300) return "$150-300M";
+  if (m <= 500) return "$300-500M";
+  if (m <= 800) return "$500-800M";
+  return "> $800M";
 }
 
 // Operador de comparacao para o filtro de orcamento

@@ -96,6 +96,21 @@ export function DurationGenreLines({ data }: Props) {
   );
   const colorMap = buildGenreColorMap(genresInData);
 
+  const countsByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const genre of genresInData) {
+      const byBucket = groupBy(
+        data.filter((m) => m.genre_primary === genre),
+        (m) => xBucketOf(m, xDim)
+      );
+      for (const b of buckets) {
+        const list = byBucket.get(b);
+        map.set(`${genre}||${b}`, list ? list.length : 0);
+      }
+    }
+    return map;
+  }, [data, genresInData, buckets, xDim]);
+
   const series: EChartsOption["series"] = genresInData.map((genre) => {
     const byBucket = groupBy(
       data.filter((m) => m.genre_primary === genre),
@@ -190,14 +205,22 @@ export function DurationGenreLines({ data }: Props) {
         }>;
         if (!arr || arr.length === 0) return "";
         const faixa = buckets[arr[0].dataIndex];
-        const rows = arr
-          .filter((p) => p.value != null)
-          .map(
-            (p) =>
-              `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span><span style="color:#cbd5e1">${p.seriesName}</span>: <b style="color:#fff">${formatValue(Number(p.value), metric)}</b>`
-          )
-          .join("<br/>");
-        return `<div style="font-weight:600;color:#fff;margin-bottom:4px">${faixa}</div>${rows}`;
+        const visible = arr.filter((p) => p.value != null);
+        if (visible.length === 0) {
+          return `<div style="font-weight:600;color:#fff;margin-bottom:4px">${faixa}</div><div style="color:#64748b;font-size:11px">Sem dados nesta faixa</div>`;
+        }
+        const metricLabel = yDef?.short ?? "Valor";
+        const rows = visible
+          .map((p) => {
+            const count = countsByKey.get(`${p.seriesName}||${faixa}`) ?? 0;
+            return `<tr>
+<td style="padding:2px 14px 2px 0;white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span><span style="color:#cbd5e1">${p.seriesName}</span></td>
+<td style="text-align:right;padding:2px 14px;white-space:nowrap;color:#fff;font-weight:600">${formatValue(Number(p.value), metric)}</td>
+<td style="text-align:right;padding:2px 0;white-space:nowrap;color:#94a3b8">${count}</td>
+</tr>`;
+          })
+          .join("");
+        return `<div style="font-weight:600;color:#fff;margin-bottom:6px">${faixa}</div><table style="border-collapse:collapse;font-size:12px"><thead><tr style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.05em"><th style="text-align:left;padding:0 14px 4px 0"></th><th style="text-align:right;padding:0 14px 4px">${metricLabel}</th><th style="text-align:right;padding:0 0 4px">Filmes</th></tr></thead><tbody>${rows}</tbody></table>`;
       },
     },
     xAxis: {
