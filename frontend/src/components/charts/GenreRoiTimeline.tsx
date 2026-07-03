@@ -77,6 +77,18 @@ export function GenreRoiTimeline({ data, allGenres }: Props) {
     };
   });
 
+  const countsByKey = new Map<string, number>();
+  for (const genre of genresInData) {
+    const byYear = groupBy(
+      data.filter((m) => m.genre_primary === genre),
+      (m) => String(m.ano_lancamento)
+    );
+    for (const y of years) {
+      const list = byYear.get(String(y));
+      countsByKey.set(`${genre}||${y}`, list ? list.length : 0);
+    }
+  }
+
   const option: EChartsOption = {
     backgroundColor: "transparent",
     color: genresInData.map((g) => colorMap[g]),
@@ -103,14 +115,21 @@ export function GenreRoiTimeline({ data, allGenres }: Props) {
         }>;
         if (!arr || arr.length === 0) return "";
         const ano = years[arr[0].dataIndex];
-        const rows = arr
-          .filter((p) => p.value != null)
-          .map(
-            (p) =>
-              `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span><span style="color:#cbd5e1">${p.seriesName}</span>: <b style="color:#fff">${Number(p.value).toFixed(1)}%</b>`
-          )
-          .join("<br/>");
-        return `<div style="font-weight:600;color:#fff;margin-bottom:4px">${ano}</div>${rows}`;
+        const visible = arr.filter((p) => p.value != null);
+        if (visible.length === 0) {
+          return `<div style="font-weight:600;color:#fff;margin-bottom:4px">${ano}</div><div style="color:#64748b;font-size:11px">Sem dados neste ano</div>`;
+        }
+        const rows = visible
+          .map((p) => {
+            const count = countsByKey.get(`${p.seriesName}||${ano}`) ?? 0;
+            return `<tr>
+<td style="padding:2px 14px 2px 0;white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px;vertical-align:middle"></span><span style="color:#cbd5e1">${p.seriesName}</span></td>
+<td style="text-align:right;padding:2px 14px;white-space:nowrap;color:#fff;font-weight:600">${Number(p.value).toFixed(1)}%</td>
+<td style="text-align:right;padding:2px 0;white-space:nowrap;color:#94a3b8">${count}</td>
+</tr>`;
+          })
+          .join("");
+        return `<div style="font-weight:600;color:#fff;margin-bottom:6px">${ano}</div><table style="border-collapse:collapse;font-size:12px"><thead><tr style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:0.05em"><th style="text-align:left;padding:0 14px 4px 0"></th><th style="text-align:right;padding:0 14px 4px">ROI</th><th style="text-align:right;padding:0 0 4px">Filmes</th></tr></thead><tbody>${rows}</tbody></table>`;
       },
     },
     xAxis: {

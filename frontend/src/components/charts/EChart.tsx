@@ -9,9 +9,10 @@ const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 interface EChartProps {
   option: EChartsOption;
   height?: number | string;
+  onEvents?: Record<string, (params: unknown) => void>;
 }
 
-export function EChart({ option, height = 360 }: EChartProps) {
+export function EChart({ option, height = 360, onEvents }: EChartProps) {
   return (
     <ReactECharts
       option={option}
@@ -19,6 +20,7 @@ export function EChart({ option, height = 360 }: EChartProps) {
       notMerge
       lazyUpdate
       opts={{ renderer: "canvas" }}
+      onEvents={onEvents}
     />
   );
 }
