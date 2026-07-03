@@ -11,24 +11,23 @@ um **dashboard interativo** construído em Next.js + ECharts.
 ## Índice
 
 1. [Visão Geral](#1-visão-geral)
-2. [Pré-requisitos](#2-pré-requisitos)
-3. [Instalação — Passo a Passo](#3-instalação--passo-a-passo)
-4. [Executando o Pipeline de Dados (Python)](#4-executando-o-pipeline-de-dados-python)
-5. [Executando o Dashboard (Frontend)](#5-executando-o-dashboard-frontend)
-6. [Estrutura do Projeto](#6-estrutura-do-projeto)
-7. [Documentação Técnica](#7-documentação-técnica)
-8. [Solução de Problemas](#8-solução-de-problemas)
+2. [Requisitos do Sistema](#2-requisitos-do-sistema)
+3. [Como Rodar o Dashboard (Recomendado)](#3-como-rodar-o-dashboard-recomendado)
+4. [Como Rodar o Pipeline de Dados (Opcional)](#4-como-rodar-o-pipeline-de-dados-opcional)
+5. [Estrutura do Projeto](#5-estrutura-do-projeto)
+6. [Documentação Técnica](#6-documentação-técnica)
+7. [Solução de Problemas](#7-solução-de-problemas)
 
 ---
 
 ## 1. Visão Geral
 
-O projeto é dividido em **dois componentes independentes**:
+O projeto tem **dois componentes independentes**:
 
 | Componente | Tecnologia | Função |
 |---|---|---|
-| **Pipeline de Dados** | Python 3.13 + Pandas + Pandera | Extrai filmes do TMDB, ajusta pela inflação via CPI-U (API BLS) e gera o dataset analítico (padrão *medalha*: Bronze → Trusted) |
-| **Dashboard** | Next.js 14 + ECharts + Tailwind CSS | Consome o dataset Trusted e exibe gráficos interativos respondendo a 10 perguntas de negócio |
+| **Pipeline de Dados** | Python 3.13 + Pandas + Pandera | Extrai filmes do TMDB, ajusta pela inflação via CPI-U (API BLS) e gera o dataset analítico |
+| **Dashboard** | Next.js 14 + ECharts + Tailwind CSS | Exibe gráficos interativos respondendo a 10 perguntas de negócio |
 
 ```
 TMDB API ──► raspagem (Bronze)
@@ -36,155 +35,182 @@ TMDB API ──► raspagem (Bronze)
 BLS API   ──► CPI-U (inflação) ─┘
 ```
 
-> **Importante:** O repositório **já inclui** os dados processados
-> (`dados/processados/cinematografia_analytics_trusted.csv` com ~2.501 filmes).
-> Se você só quer **ver o dashboard funcionando**, pode pular a execução do
-> pipeline e ir direto para a seção [5. Executando o Dashboard](#5-executando-o-dashboard-frontend).
+> **Para avaliar o projeto, basta rodar o Dashboard** (Seção 3). O repositório
+> já inclui os dados processados (~2.501 filmes). O Pipeline (Seção 4) só é
+> necessário se quiser **recoletar** os dados do zero.
 
 ---
 
-## 2. Pré-requisitos
+## 2. Requisitos do Sistema
 
-### 2.1 Git
+A tabela abaixo mostra o que cada componente precisa. **Se você só vai rodar o
+dashboard, ignore os requisitos marcados como "Pipeline".**
 
-Necessário para clonar o repositório.
+| Requisito | Dashboard | Pipeline | Onde obter |
+|---|:---:|:---:|---|
+| **Git** | ✅ | ✅ | <https://git-scm.com/downloads> |
+| **Node.js 18+** (com npm) | ✅ | — | <https://nodejs.org/> (versão LTS) |
+| **Python 3.13+** | — | ✅ | <https://www.python.org/downloads/> |
+| **Chave de API do TMDB** | — | ✅ | <https://www.themoviedb.org/settings/api> (gratuita) |
 
-- **Windows:** baixe em <https://git-scm.com/download/win>
-- **macOS:** `brew install git` (ou instale o Xcode Command Line Tools)
-- **Linux (Debian/Ubuntu):** `sudo apt install git`
+### Instalando o Git
 
-Verifique a instalação:
+- **Windows:** baixe o instalador em <https://git-scm.com/download/win> e avance
+  com as opções padrão.
+- **macOS:** `brew install git` ou instale o Xcode Command Line Tools.
+- **Linux:** `sudo apt install git`
 
-```bash
-git --version
-```
+Verifique: `git --version`
 
-### 2.2 Python 3.13+ (apenas para o pipeline)
+### Instalando o Node.js (necessário para o Dashboard)
 
-O pipeline exige **Python 3.13 ou superior** (usa recursos modernos da linguagem).
-
-- **Windows:** baixe o instalador em <https://www.python.org/downloads/> e marque
-  a opção **"Add Python to PATH"** durante a instalação.
-- **macOS:** `brew install python@3.13`
-- **Linux (Debian/Ubuntu):** compile a partir do source ou use
-  [pyenv](https://github.com/pyenv/pyenv)
-
-Verifique a instalação:
-
-```bash
-python --version
-# ou em alguns sistemas: python3 --version
-```
-
-### 2.3 Node.js 18+ e npm (para o dashboard)
-
-O frontend exige **Node.js versão 18 ou superior** (recomendado 20+). O `npm`
-vem junto na instalação do Node.
-
-- **Windows:** baixe o instalador LTS em <https://nodejs.org/>
+- **Windows:** baixe o instalador **LTS** em <https://nodejs.org/> e avance com
+  as opções padrão.
 - **macOS:** `brew install node`
-- **Linux (Debian/Ubuntu):** siga as instruções em
-  <https://github.com/nodesource/distributions>
+- **Linux:** siga <https://github.com/nodesource/distributions>
 
-Verifique a instalação:
+Verifique:
 
 ```bash
 node --version   # deve mostrar v18.x.x ou superior
 npm --version
 ```
 
-### 2.4 Chave de API do TMDB (apenas para executar o pipeline)
+### Instalando o Python 3.13+ (necessário apenas para o Pipeline)
 
-Se você pretende **executar o pipeline de coleta de dados** (não apenas ver o
-dashboard), é necessária uma chave gratuita do TMDB:
+- **Windows:** baixe em <https://www.python.org/downloads/> e marque a opção
+  **"Add Python to PATH"** durante a instalação.
+- **macOS:** `brew install python@3.13`
+- **Linux:** compile a partir do source ou use
+  [pyenv](https://github.com/pyenv/pyenv)
 
-1. Acesse <https://www.themoviedb.org/> e crie uma conta gratuita.
-2. Vá em **Configurações → API** (<https://www.themoviedb.org/settings/api>).
-3. Solicite uma **API Key** (opção Developer).
-4. Guarde a **API Key (v3 auth)** — uma string de 32 caracteres.
-
-> A chave da API BLS (inflação) é **opcional**. Sem ela, o pipeline usa a API
-> gratuita do BLS (limite menor) ou um fallback estático de CPI.
+Verifique: `python --version` (ou `python3 --version`)
 
 ---
 
-## 3. Instalação — Passo a Passo
+## 3. Como Rodar o Dashboard (Recomendado)
 
-### Passo 1: Clonar o repositório
+> **Pré-requisito:** [Git](#instalando-o-git) + [Node.js 18+](#instalando-o-nodejs-necessário-para-o-dashboard).
+> Não é necessário instalar Python nem obter chaves de API.
+
+Esta seção é **autossuficiente** — siga os passos em ordem e o dashboard estará
+no ar.
+
+### Passo 1 — Clonar o repositório
 
 ```bash
 git clone https://github.com/<usuario>/analise_filmes.git
 cd analise_filmes
 ```
 
-### Passo 2: Configurar o ambiente Python
+### Passo 2 — Instalar as dependências do frontend
 
-Crie e ative um **ambiente virtual** (recomendado para isolar dependências):
+```bash
+cd frontend
+npm install
+```
+
+Isso baixa todos os pacotes necessários (Next.js, ECharts, Tailwind, etc.).
+Pode levar 1 a 3 minutos na primeira vez.
+
+### Passo 3 — Iniciar o servidor
+
+```bash
+npm run dev
+```
+
+O terminal exibirá:
+
+```
+  ▲ Next.js 14.x.x
+  - Local:   http://localhost:3000
+```
+
+### Passo 4 — Abrir no navegador
+
+Acesse: **<http://localhost:3000>**
+
+O dashboard redireciona automaticamente para a página **Análise por Gênero**.
+
+### Páginas disponíveis
+
+| Rota | Conteúdo |
+|---|---|
+| `/generos` | Evolução de ROI por gênero, heatmap Gênero × Orçamento, análise por duração e ranking de combinações (IDC) |
+| `/filmes` | Dispersão Nota × Lucro e Runtime × ROI, com filtros interativos |
+| `/tabela` | Tabela completa dos ~2.501 filmes com busca por nome e ordenação por coluna |
+
+### Versão de produção (opcional)
+
+Caso prefira rodar a build otimizada em vez do modo de desenvolvimento:
+
+```bash
+npm run build
+npm run start
+```
+
+---
+
+## 4. Como Rodar o Pipeline de Dados (Opcional)
+
+> **Pré-requisito:** [Git](#instalando-o-git) + [Python 3.13+](#instalando-o-python-313-necessário-apenas-para-o-pipeline) + [Chave de API do TMDB](#chave-de-api-do-tmdb).
+>
+> **Pule esta seção** se só quer ver o dashboard. Os dados já estão incluídos
+> no repositório em `dados/processados/`.
+
+Esta seção é **autossuficiente** — cobre desde a configuração do ambiente Python
+até a execução completa.
+
+### Passo 1 — Clonar o repositório (se ainda não fez)
+
+```bash
+git clone https://github.com/<usuario>/analise_filmes.git
+cd analise_filmes
+```
+
+### Passo 2 — Criar e ativar o ambiente virtual Python
 
 **Windows (PowerShell):**
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-> Se o PowerShell bloquear a execução do script, rode:
+> Se o PowerShell bloquear a execução do script, rode primeiro:
 > `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 **macOS / Linux:**
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Instale as dependências do Python:
+### Passo 3 — Instalar as dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Passo 3: Configurar as variáveis de ambiente (`.env`)
+### Passo 4 — Configurar a chave de API (`.env`)
 
-Na **raiz do projeto**, copie o arquivo de exemplo:
+Copie o arquivo de exemplo:
 
 ```bash
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` e preencha com sua chave do TMDB:
+Edite o arquivo `.env` na raiz do projeto e cole sua chave do TMDB:
 
 ```env
 TMDB_API_KEY=sua_chave_de_32_caracteres_aqui
 
-# (Opcional) Chave do BLS para mais consultas diárias de CPI
+# (Opcional) Chave do BLS para mais consultas de CPI por dia
 BLS_API_KEY=
 ```
 
-### Passo 4: Instalar as dependências do Frontend
-
-Entre na pasta do frontend e instale os pacotes:
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
----
-
-## 4. Executando o Pipeline de Dados (Python)
-
-> **Pule esta seção** se só quer ver o dashboard — os dados já estão incluídos
-> no repositório em `dados/processados/`.
-
-O pipeline tem **duas fases** executadas em sequência:
-
-1. **Raspagem (Bronze):** descobre e enriquece filmes do TMDB ano a ano.
-2. **ETL (Trusted):** valida, deduplica, ajusta pela inflação (CPI-U) e calcula
-   métricas derivadas (lucro real, ROI real, etc.).
-
-### Execução completa (raspagem + ETL)
-
-Na raiz do projeto, com o ambiente virtual ativado:
+### Passo 5 — Executar o pipeline
 
 ```bash
 python main.py
@@ -201,12 +227,12 @@ python main.py --help
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `--skip-raspagem` | — | Pula a fase de coleta e reutiliza o Bronze existente (útil para repetir só o ETL) |
+| `--skip-raspagem` | — | Pula a coleta e reutiliza o Bronze existente |
 | `--ano-inicio` | 2006 | Ano inicial da busca |
 | `--ano-fim` | 2026 | Ano final da busca |
-| `--votos` | 1000 | Número mínimo de votos (`vote_count.gte`) |
-| `--max-paginas` | 500 | Limite de páginas por ano (TMDB aceita no máximo 500) |
-| `--sem-filtro-financeiro` | — | Mantém filmes sem budget/revenue preenchidos |
+| `--votos` | 1000 | Número mínimo de votos |
+| `--max-paginas` | 500 | Limite de páginas por ano |
+| `--sem-filtro-financeiro` | — | Mantém filmes sem budget/revenue |
 | `-v` / `--verbose` | — | Logs detalhados (debug) |
 
 **Exemplos:**
@@ -229,57 +255,13 @@ Ao final, dois arquivos CSV são gerados:
 | Arquivo | Camada | Descrição |
 |---|---|---|
 | `dados/brutos/tmdb_filmes_financeiro.csv` | **Bronze** | Dados crus extraídos do TMDB |
-| `dados/processados/cinematografia_analytics_trusted.csv` | **Trusted** | Dados validados, ajustados pela inflação e enriquecidos com métricas calculadas |
+| `dados/processados/cinematografia_analytics_trusted.csv` | **Trusted** | Dados validados, ajustados pela inflação e enriquecidos |
 
 Os logs são salvos em `logs/pipeline.log`.
 
 ---
 
-## 5. Executando o Dashboard (Frontend)
-
-### Passo 1: Entrar na pasta do frontend
-
-```bash
-cd frontend
-```
-
-### Passo 2: Iniciar o servidor de desenvolvimento
-
-```bash
-npm run dev
-```
-
-O terminal exibirá algo como:
-
-```
-  ▲ Next.js 14.x.x
-  - Local:   http://localhost:3000
-```
-
-### Passo 3: Abrir no navegador
-
-Acesse: **<http://localhost:3000>**
-
-O dashboard redireciona automaticamente para a página **Análise por Gênero**.
-
-### Páginas disponíveis
-
-| Rota | Conteúdo |
-|---|---|
-| `/generos` | Evolução de ROI por gênero ao longo do tempo, heatmap Gênero × Orçamento, análise por duração e ranking de combinações (IDC) |
-| `/filmes` | Dispersão Nota × Lucro e Runtime × ROI, com filtros interativos |
-| `/tabela` | Tabela completa dos ~2.501 filmes com busca por nome e ordenação por coluna |
-
-### Gerar a versão de produção (opcional)
-
-```bash
-npm run build
-npm run start
-```
-
----
-
-## 6. Estrutura do Projeto
+## 5. Estrutura do Projeto
 
 ```
 analise_filmes/
@@ -317,11 +299,7 @@ analise_filmes/
 │   ├── pipeline.md                  # Referência completa do pipeline
 │   ├── frontend.md                  # Referência do frontend
 │   ├── dados.md                     # Dicionário de dados (Bronze + Trusted)
-│   ├── streamlit_dashboard.md       # Dashboard legado (deprecated)
 │   └── documento_tecnico.tex        # Documento acadêmico (LaTeX)
-│
-├── streamlit_dashboard/             # Dashboard antigo (DEPRECATED)
-│   └── app_dashboard.py
 │
 └── logs/                            # Logs de execução do pipeline
     └── pipeline.log
@@ -329,7 +307,7 @@ analise_filmes/
 
 ---
 
-## 7. Documentação Técnica
+## 6. Documentação Técnica
 
 Documentos detalhados na pasta [`docs/`](./docs/):
 
@@ -342,50 +320,38 @@ Documentos detalhados na pasta [`docs/`](./docs/):
 
 ---
 
-## 8. Solução de Problemas
-
-### "TMDB_API_KEY não encontrada"
-
-O arquivo `.env` não foi criado ou a chave está vazia. Veja o
-[Passo 3](#passo-3-configurar-as-variáveis-de-ambiente-env).
-
-### Erro "401 Unauthorized" ao raspar dados do TMDB
-
-A chave do TMDB pode estar incorreta ou desativada. Verifique em
-<https://www.themoviedb.org/settings/api>. O pipeline faz retries automáticos;
-erros pontuais durante a raspagem são normais (rate-limit) e o processo continua.
-
-### `pip install` falha no Windows
-
-Certifique-se de que o Python foi adicionado ao PATH durante a instalação.
-Tente usar `python -m pip install -r requirements.txt` em vez de `pip` direto.
+## 7. Solução de Problemas
 
 ### `npm install` ou `npm run dev` falha
 
 Verifique se a versão do Node.js é 18+ (`node --version`). Se o problema
-persistir, tente remover a pasta `frontend/node_modules` e o arquivo
+persistir, remova a pasta `frontend/node_modules` e o arquivo
 `frontend/package-lock.json`, depois rode `npm install` novamente.
 
 ### O dashboard abre mas não mostra dados
 
 Confirme que o arquivo
 `dados/processados/cinematografia_analytics_trusted.csv` existe e não está vazio.
-O frontend lê este arquivo por padrão. Se precisar apontar para outro caminho,
-defina a variável de ambiente `TRUSTED_CSV_PATH` antes de rodar `npm run dev`.
+O frontend lê este arquivo por padrão.
 
 ### O PowerShell bloqueia a ativação do ambiente virtual
-
-Rode o comando abaixo para liberar a execução de scripts localmente:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-### Dashboard Streamlit (legado)
+### `pip install` falha no Windows
 
-O dashboard antigo em Streamlit foi **descontinuado** e substituído pelo frontend
-Next.js. Se quiser executá-lo por histórico:
+Certifique-se de que o Python foi adicionado ao PATH durante a instalação.
+Tente: `python -m pip install -r requirements.txt`
 
-```bash
-streamlit run streamlit_dashboard/app_dashboard.py
-```
+### "TMDB_API_KEY não encontrada" (Pipeline)
+
+O arquivo `.env` não foi criado ou a chave está vazia. Veja o
+[Passo 4 da Seção 4](#passo-4--configurar-a-chave-de-api-env).
+
+### Erro "401 Unauthorized" ao raspar dados do TMDB (Pipeline)
+
+A chave pode estar incorreta ou desativada. Verifique em
+<https://www.themoviedb.org/settings/api>. O pipeline faz retries automáticos;
+erros pontuais durante a raspagem são normais (rate-limit) e o processo continua.
