@@ -5,14 +5,20 @@ import Papa from "papaparse";
 
 import type { Movie } from "@/features/dashboard/types";
 
-// Caminho padrao: a pasta `dados/` fica na raiz do projeto (acima de frontend/)
-const DEFAULT_CSV = path.join(
-  process.cwd(),
-  "..",
+export const runtime = "nodejs";
+
+const CSV_RELATIVE_PATH = path.join(
   "dados",
   "processados",
   "cinematografia_analytics_trusted.csv"
 );
+
+const CSV_CANDIDATES = [
+  // Vercel com Root Directory em `frontend/`: o CSV precisa estar dentro do frontend.
+  path.join(process.cwd(), CSV_RELATIVE_PATH),
+  // Desenvolvimento local a partir da estrutura completa do repositorio.
+  path.join(process.cwd(), "..", CSV_RELATIVE_PATH),
+];
 
 // Cache em modulo: o CSV nao muda durante a sessao de dev
 let cache: Movie[] | null = null;
@@ -23,13 +29,16 @@ function toNumber(value: unknown): number {
 }
 
 export async function GET() {
-  const csvPath = process.env.TRUSTED_CSV_PATH ?? DEFAULT_CSV;
+  const csvPath =
+    process.env.TRUSTED_CSV_PATH ??
+    CSV_CANDIDATES.find((candidate) => fs.existsSync(candidate)) ??
+    CSV_CANDIDATES[0];
 
   if (!fs.existsSync(csvPath)) {
     return NextResponse.json(
       {
         error:
-          "Base Trusted nao encontrada. Rode o pipeline Python primeiro: `python main.py` na raiz do projeto.",
+          "Base Trusted nao encontrada. Gere o CSV processado e mantenha uma copia em `frontend/dados/processados/` para deploy na Vercel.",
         path: csvPath,
       },
       { status: 404 }
